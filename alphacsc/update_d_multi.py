@@ -178,67 +178,66 @@ def update_uv(X, z, uv_hat0, constants=None, b_hat_0=None, debug=False,
             return v
 
         pobj = []
-        for jj in range(1):
-            # ---------------- update u
+        # ---------------- update u
 
-            def obj(u):
+        def obj(u):
+            uv = np.c_[u, v_hat]
+            return objective(uv)
+
+        def grad_u(u):
+            if window:
+                uv = np.c_[u, v_hat * tukey_window_]
+            else:
                 uv = np.c_[u, v_hat]
-                return objective(uv)
+            grad_d = gradient_d(uv, X=X, z=z, constants=constants,
+                                loss=loss, loss_params=loss_params)
+            return (grad_d * uv[:, None, n_channels:]).sum(axis=2)
 
-            def grad_u(u):
-                if window:
-                    uv = np.c_[u, v_hat * tukey_window_]
-                else:
-                    uv = np.c_[u, v_hat]
-                grad_d = gradient_d(uv, X=X, z=z, constants=constants,
-                                    loss=loss, loss_params=loss_params)
-                return (grad_d * uv[:, None, n_channels:]).sum(axis=2)
+        if adaptive_step_size:
+            Lu = 1
+        else:
+            Lu = compute_lipschitz(uv_hat, constants, 'u', b_hat_0)
+        assert Lu > 0
 
-            if adaptive_step_size:
-                Lu = 1
-            else:
-                Lu = compute_lipschitz(uv_hat, constants, 'u', b_hat_0)
-            assert Lu > 0
+        u_hat, pobj_u = fista(obj, grad_u, prox_u, 0.99 / Lu, u_hat,
+                              max_iter, momentum=momentum, eps=eps,
+                              adaptive_step_size=adaptive_step_size,
+                              verbose=verbose, debug=debug,
+                              name="Update u")
+        uv_hat = np.c_[u_hat, v_hat]
+        if debug:
+            pobj.extend(pobj_u)
 
-            u_hat, pobj_u = fista(obj, grad_u, prox_u, 0.99 / Lu, u_hat,
-                                  max_iter, momentum=momentum, eps=eps,
-                                  adaptive_step_size=adaptive_step_size,
-                                  verbose=verbose, debug=debug,
-                                  name="Update u")
-            uv_hat = np.c_[u_hat, v_hat]
-            if debug:
-                pobj.extend(pobj_u)
+        # ---------------- update v
+        def obj(v):
+            uv = np.c_[u_hat, v]
+            return objective(uv)
 
-            # ---------------- update v
-            def obj(v):
-                uv = np.c_[u_hat, v]
-                return objective(uv)
+        def grad_v(v):
+            if window:
+                v = v * tukey_window_
+            uv = np.c_[u_hat, v]
+            grad_d = gradient_d(uv, X=X, z=z, constants=constants,
+                                loss=loss, loss_params=loss_params)
+            grad_v = (grad_d * uv[:, :n_channels, None]).sum(axis=1)
+            if window:
+                grad_v *= tukey_window_
+            return grad_v
 
-            def grad_v(v):
-                if window:
-                    v = v * tukey_window_
-                uv = np.c_[u_hat, v]
-                grad_d = gradient_d(uv, X=X, z=z, constants=constants,
-                                    loss=loss, loss_params=loss_params)
-                grad_v = (grad_d * uv[:, :n_channels, None]).sum(axis=1)
-                if window:
-                    grad_v *= tukey_window_
-                return grad_v
+        if adaptive_step_size:
+            Lv = 1
+        else:
+            Lv = compute_lipschitz(uv_hat, constants, 'v', b_hat_0)
+        assert Lv > 0
 
-            if adaptive_step_size:
-                Lv = 1
-            else:
-                Lv = compute_lipschitz(uv_hat, constants, 'v', b_hat_0)
-            assert Lv > 0
-
-            v_hat, pobj_v = fista(obj, grad_v, prox_v, 0.99 / Lv, v_hat,
-                                  max_iter, momentum=momentum, eps=eps,
-                                  adaptive_step_size=adaptive_step_size,
-                                  verbose=verbose, debug=debug,
-                                  name="Update v")
-            uv_hat = np.c_[u_hat, v_hat]
-            if debug:
-                pobj.extend(pobj_v)
+        v_hat, pobj_v = fista(obj, grad_v, prox_v, 0.99 / Lv, v_hat,
+                              max_iter, momentum=momentum, eps=eps,
+                              adaptive_step_size=adaptive_step_size,
+                              verbose=verbose, debug=debug,
+                              name="Update v")
+        uv_hat = np.c_[u_hat, v_hat]
+        if debug:
+            pobj.extend(pobj_v)
 
     else:
         raise ValueError('Unknown solver_d: %s' % (solver_d, ))
