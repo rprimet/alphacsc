@@ -187,24 +187,26 @@ def learn_d_z_multi(X, n_atoms, n_times_atom, n_iter=60, n_jobs=1,
         # for D.
         d_kwargs["max_iter"] = 1
 
-    def compute_d_func(X, z_hat, D_hat, constants):
-        if rank1:
-            return update_uv(X, z_hat, uv_hat0=D_hat, constants=constants,
-                             b_hat_0=b_hat_0, solver_d=solver_d,
-                             uv_constraint=uv_constraint, loss=loss,
-                             loss_params=loss_params, window=window,
-                             **d_kwargs)
-        else:
-            return update_d(X, z_hat, D_hat0=D_hat, constants=constants,
-                            b_hat_0=b_hat_0, solver_d=solver_d,
-                            uv_constraint=uv_constraint, loss=loss,
-                            loss_params=loss_params, window=window, **d_kwargs)
 
     with get_z_encoder_for(X, D_hat, n_atoms, n_times_atom, n_jobs,
                            solver_z, z_kwargs, algorithm, reg, loss,
                            loss_params, uv_constraint,
                            feasible_evaluation=True,
                            use_sparse_z=use_sparse_z) as z_encoder:
+
+        def compute_d_func(X, z_hat, D_hat, constants):
+            if rank1:
+                return update_uv(X, z_hat, uv_hat0=D_hat, constants=constants,
+                                 b_hat_0=b_hat_0, solver_d=solver_d,
+                                 uv_constraint=uv_constraint, loss=loss,
+                                 loss_params=loss_params, window=window,
+                                 **d_kwargs)
+            else:
+                return update_d(X, z_hat, D_hat0=D_hat, constants=constants,
+                                b_hat_0=b_hat_0, solver_d=solver_d,
+                                uv_constraint=uv_constraint, loss=loss,
+                                loss_params=loss_params, window=window, **d_kwargs)
+
         if callable(callback):
             callback(X, D_hat, z_encoder.get_z_hat(), [])
 
