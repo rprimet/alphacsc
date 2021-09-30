@@ -103,7 +103,6 @@ def update_uv(X, z, uv_hat0, constants=None, b_hat_0=None, debug=False,
     uv_hat : array, shape (n_atoms, n_channels + n_times_atom)
         The atoms to learn from the data.
     """
-    n_trials, n_atoms, n_times_valid = get_z_shape(z)
     _, n_channels, n_times = X.shape
     n_times_atom = uv_hat0.shape[1] - n_channels
 
@@ -292,8 +291,6 @@ def update_d(X, z, D_hat0, constants=None, b_hat_0=None, debug=False,
     D_hat : array, shape (n_atoms, n_channels, n_times_atom)
         The atoms to learn from the data.
     """
-    n_trials, n_atoms, n_times_valid = get_z_shape(z)
-    _, n_channels, n_times = X.shape
     n_atoms, n_channels, n_times_atom = D_hat0.shape
 
     if window:
